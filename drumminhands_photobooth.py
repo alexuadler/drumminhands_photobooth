@@ -21,13 +21,13 @@ from subprocess import call
 import commands
 
 ##### Config Variables #####
-led1_pin = 15 # LED 1
-led2_pin = 19 # LED 2
-led3_pin = 21 # LED 3
-led4_pin = 23 # LED 4
-button1_pin = 12 # pin for the big red button
+led1_pin = 12 # LED 1
+led2_pin = 16 # LED 2
+led3_pin = 20 # LED 3
+led4_pin = 21 # LED 4
+button1_pin = 18 # pin for the big red button
 button2_pin = 22 # pin for button to shutdown the pi
-button3_pin = 11 # pin for button to end the program, but not shutdown the pibutton1_pin = 18
+button3_pin = 17 # pin for button to end the program, but not shutdown the pibutton1_pin = 18
 
 post_online = 0
 total_pics = 1
@@ -49,7 +49,7 @@ test_server = 'www.google.com'
 real_path = os.path.dirname(os.path.realpath(__file__))
 
 ##### Config GPIO Parameters #####
-GPIO.setmode(GPIO.BOARD)
+GPIO.setmode(GPIO.BCM)
 GPIO.setup(led1_pin,GPIO.OUT) # LED 1
 GPIO.setup(led2_pin,GPIO.OUT) # LED 2
 GPIO.setup(led3_pin,GPIO.OUT) # LED 3
@@ -57,10 +57,10 @@ GPIO.setup(led4_pin,GPIO.OUT) # LED 4
 GPIO.setup(button1_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # falling edge detection on button 1
 GPIO.setup(button2_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # falling edge detection on button 2
 GPIO.setup(button3_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # falling edge detection on button 3
-#GPIO.output(led1_pin,False);
-#GPIO.output(led2_pin,False);
-#GPIO.output(led3_pin,False);
-#GPIO.output(led4_pin,False); #for some reason the pin turns on at the beginning of the program. why?????????????????????????????????
+GPIO.output(led1_pin,False);
+GPIO.output(led2_pin,False);
+GPIO.output(led3_pin,False);
+GPIO.output(led4_pin,False); #for some reason the pin turns on at the beginning of the program. why?????????????????????????????????
 
 #################
 ### Functions ###
@@ -73,16 +73,16 @@ atexit.register(cleanup)
 
 def shut_it_down(channel):  
     print "Shutting down..." 
-    #GPIO.output(led1_pin,True);
-    #GPIO.output(led2_pin,True);
-    #GPIO.output(led3_pin,True);
-    #GPIO.output(led4_pin,True);
+    GPIO.output(led1_pin,True);
+    GPIO.output(led2_pin,True);
+    GPIO.output(led3_pin,True);
+    GPIO.output(led4_pin,True);
     time.sleep(3)
     os.system("sudo halt")
 
 def exit_photobooth(channel):
     print "Photo booth app ended. RPi still running" 
-    #GPIO.output(led1_pin,True);
+    GPIO.output(led1_pin,True);
     time.sleep(3)
     sys.exit()
     
@@ -93,16 +93,16 @@ def clear_pics(foo): #why is this function being passed an arguments?
 		os.remove(f) 
 	#light the lights in series to show completed
 	print "Deleted previous pics"
-	#GPIO.output(led1_pin,False); #turn off the lights
-	#GPIO.output(led2_pin,False);
-	#GPIO.output(led3_pin,False);
-	#GPIO.output(led4_pin,False)
-	#pins = [led1_pin, led2_pin, led3_pin, led4_pin]
-#	for p in pins:
-#		GPIO.output(p,True); 
-#		sleep(0.25)
-#		GPIO.output(p,False);
-#		sleep(0.25)
+	GPIO.output(led1_pin,False); #turn off the lights
+	GPIO.output(led2_pin,False);
+	GPIO.output(led3_pin,False);
+	GPIO.output(led4_pin,False)
+	pins = [led1_pin, led2_pin, led3_pin, led4_pin]
+	for p in pins:
+		GPIO.output(p,True); 
+		sleep(0.25)
+		GPIO.output(p,False);
+		sleep(0.25)
       
 def is_connected():
   try:
@@ -166,10 +166,10 @@ def start_photobooth():
 	################################# Begin Step 1 ################################# 
 	show_image(real_path + "/blank.png")
 	print "Get Ready"
-#	GPIO.output(led1_pin,True);
+	GPIO.output(led1_pin,True);
 	show_image(real_path + "/our_cues/get_ready.png")
 	sleep(prep_delay) 
-#	GPIO.output(led1_pin,False)
+	GPIO.output(led1_pin,False)
 
 ###### Need to insert a "look at the camera" cue
 #	show_image(real_path + "/blank.png")
@@ -223,7 +223,7 @@ def start_photobooth():
 		traceback.print_exception(e.__class__, e, tb)
 	#pygame.quit()
 	print "Done"
-#	GPIO.output(led4_pin,False) #turn off the LED
+	GPIO.output(led4_pin,False) #turn off the LED
 	
 	if post_online:
 		show_image(real_path + "/our_cues/finished.png")
@@ -253,15 +253,15 @@ for f in files:
     os.remove(f)
 
 print "Photo booth app running..." 
-#GPIO.output(led1_pin,True); #light up the lights to show the app is running
-#GPIO.output(led2_pin,True);
-#GPIO.output(led3_pin,True);
-#GPIO.output(led4_pin,True);
-#time.sleep(3)
-#GPIO.output(led1_pin,False); #turn off the lights
-#GPIO.output(led2_pin,False);
-#GPIO.output(led3_pin,False);
-#GPIO.output(led4_pin,False);
+GPIO.output(led1_pin,True); #light up the lights to show the app is running
+GPIO.output(led2_pin,True);
+GPIO.output(led3_pin,True);
+GPIO.output(led4_pin,True);
+time.sleep(3)
+GPIO.output(led1_pin,False); #turn off the lights
+GPIO.output(led2_pin,False);
+GPIO.output(led3_pin,False);
+GPIO.output(led4_pin,False);
 
 show_image(real_path + "/our_cues/intro.png");
 
