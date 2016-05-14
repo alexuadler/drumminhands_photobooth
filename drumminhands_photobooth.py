@@ -33,7 +33,7 @@ post_online = 0
 total_pics = 1
 capture_delay = 2
 prep_delay = 3
-gif_delay = 100
+show_pic_delay = 4
 restart_delay = 5
 
 monitor_w = 800
@@ -129,6 +129,11 @@ def capture_image(namescheme):
           config.file_path +
           namescheme + ".%C", shell=True)
 
+def backup_raw(namescheme):
+    call("mv "+config.file_path +
+         namescheme+ ".nef " +
+         config.raw_path + namescheme + ".nef", shell=True)
+
 def show_image(image_path):
     screen = init_pygame()
     img=pygame.image.load(image_path) 
@@ -162,11 +167,12 @@ def start_photobooth():
 	show_image(real_path + "/blank.png")
 	print "Get Ready"
 #	GPIO.output(led1_pin,True);
-	show_image(real_path + "/instructions.png")
+	show_image(real_path + "/our_cues/get_ready.png")
 	sleep(prep_delay) 
 #	GPIO.output(led1_pin,False)
 
-	show_image(real_path + "/blank.png")
+###### Need to insert a "look at the camera" cue
+#	show_image(real_path + "/blank.png")
 
 # This is where I would initialize the parameters for Gphoto2 and the preview. For now, I'm leaving it out.
 	
@@ -178,53 +184,54 @@ def start_photobooth():
 	now = time.strftime("%Y-%m-%d-%H:%M:%S") #need to let python decide file name so I can reference it
 
         capture_image(now)
+        backup_raw(now)
 
 	########################### Begin Step 3 #################################
-        print "Postprocessing" 
-	if post_online:
-		show_image(real_path + "/uploading.png")
-	else:
-		show_image(real_path + "/processing.png")
+#        print "Postprocessing" 
+#	if post_online:
+#		show_image(real_path + "/uploading.png")
+#	else:
+#		show_image(real_path + "/processing.png")
 
 #	GPIO.output(led3_pin,True) #turn on the LED
-	print "Uploading to tumblr. Please check " + config.tumblr_blog + ".tumblr.com soon."
+#	print "Uploading to tumblr. Please check " + config.tumblr_blog + ".tumblr.com soon."
 
-	if post_online: # turn off posting pics online in the variable declarations at the top of this document
-		connected = is_connected() #check to see if you have an internet connection
-		while connected: 
-			try:
-				file_to_upload = config.file_path + now + ".gif"
-				client.create_photo(config.tumblr_blog, state="published", tags=["drumminhandsPhotoBooth"], data=file_to_upload)
-				break
-			except ValueError:
-				print "Oops. No internect connection. Upload later."
-				try: #make a text file as a note to upload the .gif later
-					file = open(config.file_path + now + "-FILENOTUPLOADED.txt",'w')   # Trying to create a new file or open one
-					file.close()
-				except:
-					print('Something went wrong. Could not write file.')
-					sys.exit(0) # quit Python
+#	if post_online: # turn off posting pics online in the variable declarations at the top of this document
+#		connected = is_connected() #check to see if you have an internet connection
+#		while connected: 
+#			try:
+#				file_to_upload = config.file_path + now + ".gif"
+#				client.create_photo(config.tumblr_blog, state="published", tags=["drumminhandsPhotoBooth"], data=file_to_upload)
+#				break
+#			except ValueError:
+#				print "Oops. No internect connection. Upload later."
+#				try: #make a text file as a note to upload the .gif later
+#					file = open(config.file_path + now + "-FILENOTUPLOADED.txt",'w')   # Trying to create a new file or open one
+#					file.close()
+#				except:
+#					print('Something went wrong. Could not write file.')
+#					sys.exit(0) # quit Python
 #	GPIO.output(led3_pin,False) #turn off the LED
 	
 	########################### Begin Step 4 #################################
 #	GPIO.output(led4_pin,True) #turn on the LED
 	try:
 		display_pics(now)
-		time.sleep(5)
+		time.sleep(show_pic_delay)
 	except Exception, e:
 		tb = sys.exc_info()[2]
 		traceback.print_exception(e.__class__, e, tb)
-	pygame.quit()
+	#pygame.quit()
 	print "Done"
 #	GPIO.output(led4_pin,False) #turn off the LED
 	
 	if post_online:
-		show_image(real_path + "/finished.png")
+		show_image(real_path + "/our_cues/finished.png")
 	else:
-		show_image(real_path + "/finished2.png")
+		show_image(real_path + "/our_cues/finished.png")
 	
 	time.sleep(restart_delay)
-	show_image(real_path + "/intro.png");
+	show_image(real_path + "/our_cues/intro.png");
 
 
 
@@ -256,7 +263,7 @@ print "Photo booth app running..."
 #GPIO.output(led3_pin,False);
 #GPIO.output(led4_pin,False);
 
-show_image(real_path + "/intro.png");
+show_image(real_path + "/our_cues/intro.png");
 
 while True:
         GPIO.wait_for_edge(button1_pin, GPIO.FALLING)
