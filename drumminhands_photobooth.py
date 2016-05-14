@@ -8,32 +8,33 @@ import time
 import traceback
 from time import sleep
 import RPi.GPIO as GPIO
-import picamera # http://picamera.readthedocs.org/en/release-1.4/install2.html
+# import picamera # http://picamera.readthedocs.org/en/release-1.4/install2.html
 import atexit
 import sys
 import socket
 import pygame
-import pytumblr # https://github.com/tumblr/pytumblr
+#import pytumblr # https://github.com/tumblr/pytumblr
 import config
 from signal import alarm, signal, SIGALRM, SIGKILL
+import subprocess
+from subprocess import call
+import commands
 
-########################
-### Variables Config ###
-########################
+##### Config Variables #####
 led1_pin = 15 # LED 1
 led2_pin = 19 # LED 2
 led3_pin = 21 # LED 3
 led4_pin = 23 # LED 4
-button1_pin = 22 # pin for the big red button
-button2_pin = 18 # pin for button to shutdown the pi
-button3_pin = 16 # pin for button to end the program, but not shutdown the pi
+button1_pin = 12 # pin for the big red button
+button2_pin = 22 # pin for button to shutdown the pi
+button3_pin = 11 # pin for button to end the program, but not shutdown the pibutton1_pin = 18
 
-post_online = 1 # default 1. Change to 0 if you don't want to upload pics.
-total_pics = 4 # number of pics to be taken
-capture_delay = 2 # delay between pics
-prep_delay = 3 # number of seconds at step 1 as users prep to have photo taken
-gif_delay = 100 # How much time between frames in the animated gif
-restart_delay = 5 # how long to display finished message before beginning a new session
+post_online = 0
+total_pics = 1
+capture_delay = 2
+prep_delay = 3
+gif_delay = 100
+restart_delay = 5
 
 monitor_w = 800
 monitor_h = 480
@@ -42,22 +43,12 @@ transfrom_y = 480 # how high to scale the jpg when replaying
 offset_x = 80 # how far off to left corner to display photos
 offset_y = 0 # how far off to left corner to display photos
 replay_delay = 1 # how much to wait in-between showing pics on-screen after taking
-replay_cycles = 2 # how many times to show each photo on-screen after taking
+replay_cycles = 2 # how many times to show each photo on-screen after takingtransform
 
 test_server = 'www.google.com'
 real_path = os.path.dirname(os.path.realpath(__file__))
 
-# Setup the tumblr OAuth Client
-client = pytumblr.TumblrRestClient(
-    config.consumer_key,
-    config.consumer_secret,
-    config.oath_token,
-    config.oath_secret,
-);
-
-####################
-### Other Config ###
-####################
+##### Config GPIO Parameters #####
 GPIO.setmode(GPIO.BOARD)
 GPIO.setup(led1_pin,GPIO.OUT) # LED 1
 GPIO.setup(led2_pin,GPIO.OUT) # LED 2
@@ -66,10 +57,10 @@ GPIO.setup(led4_pin,GPIO.OUT) # LED 4
 GPIO.setup(button1_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # falling edge detection on button 1
 GPIO.setup(button2_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # falling edge detection on button 2
 GPIO.setup(button3_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # falling edge detection on button 3
-GPIO.output(led1_pin,False);
-GPIO.output(led2_pin,False);
-GPIO.output(led3_pin,False);
-GPIO.output(led4_pin,False); #for some reason the pin turns on at the beginning of the program. why?????????????????????????????????
+#GPIO.output(led1_pin,False);
+#GPIO.output(led2_pin,False);
+#GPIO.output(led3_pin,False);
+#GPIO.output(led4_pin,False); #for some reason the pin turns on at the beginning of the program. why?????????????????????????????????
 
 #################
 ### Functions ###
@@ -82,16 +73,16 @@ atexit.register(cleanup)
 
 def shut_it_down(channel):  
     print "Shutting down..." 
-    GPIO.output(led1_pin,True);
-    GPIO.output(led2_pin,True);
-    GPIO.output(led3_pin,True);
-    GPIO.output(led4_pin,True);
+    #GPIO.output(led1_pin,True);
+    #GPIO.output(led2_pin,True);
+    #GPIO.output(led3_pin,True);
+    #GPIO.output(led4_pin,True);
     time.sleep(3)
     os.system("sudo halt")
 
 def exit_photobooth(channel):
     print "Photo booth app ended. RPi still running" 
-    GPIO.output(led1_pin,True);
+    #GPIO.output(led1_pin,True);
     time.sleep(3)
     sys.exit()
     
@@ -102,16 +93,16 @@ def clear_pics(foo): #why is this function being passed an arguments?
 		os.remove(f) 
 	#light the lights in series to show completed
 	print "Deleted previous pics"
-	GPIO.output(led1_pin,False); #turn off the lights
-	GPIO.output(led2_pin,False);
-	GPIO.output(led3_pin,False);
-	GPIO.output(led4_pin,False)
-	pins = [led1_pin, led2_pin, led3_pin, led4_pin]
-	for p in pins:
-		GPIO.output(p,True); 
-		sleep(0.25)
-		GPIO.output(p,False);
-		sleep(0.25)
+	#GPIO.output(led1_pin,False); #turn off the lights
+	#GPIO.output(led2_pin,False);
+	#GPIO.output(led3_pin,False);
+	#GPIO.output(led4_pin,False)
+	#pins = [led1_pin, led2_pin, led3_pin, led4_pin]
+#	for p in pins:
+#		GPIO.output(p,True); 
+#		sleep(0.25)
+#		GPIO.output(p,False);
+#		sleep(0.25)
       
 def is_connected():
   try:
@@ -132,6 +123,11 @@ def init_pygame():
     pygame.display.set_caption('Photo Booth Pics')
     pygame.mouse.set_visible(False) #hide the mouse cursor	
     return pygame.display.set_mode(size, pygame.FULLSCREEN)
+
+def capture_image(namescheme):
+    call ("gphoto2 --capture-image-and-download --filename=" +
+          config.file_path +
+          namescheme + ".%C", shell=True)
 
 def show_image(image_path):
     screen = init_pygame()
@@ -156,60 +152,41 @@ def display_pics(jpg_group):
         alarm(0)
     except Alarm:
         raise KeyboardInterrupt
-    for i in range(0, replay_cycles): #show pics a few times
-		for i in range(1, total_pics+1): #show each pic
-			filename = config.file_path + jpg_group + "-0" + str(i) + ".jpg"
-                        show_image(filename);
-			time.sleep(replay_delay) # pause 
-				
+    filename = config.file_path + jpg_group + ".jpg"
+    show_image(filename)
+
+
 # define the photo taking function for when the big button is pressed 
 def start_photobooth(): 
 	################################# Begin Step 1 ################################# 
 	show_image(real_path + "/blank.png")
 	print "Get Ready"
-	GPIO.output(led1_pin,True);
+#	GPIO.output(led1_pin,True);
 	show_image(real_path + "/instructions.png")
 	sleep(prep_delay) 
-	GPIO.output(led1_pin,False)
+#	GPIO.output(led1_pin,False)
 
 	show_image(real_path + "/blank.png")
-	
-	camera = picamera.PiCamera()
-	pixel_width = 500 #use a smaller size to process faster, and tumblr will only take up to 500 pixels wide for animated gifs
-	pixel_height = monitor_h * pixel_width // monitor_w
-	camera.resolution = (pixel_width, pixel_height) 
-	camera.vflip = True
-	camera.hflip = False
-	camera.saturation = -100 # comment out this line if you want color images
-	camera.start_preview()
+
+# This is where I would initialize the parameters for Gphoto2 and the preview. For now, I'm leaving it out.
 	
 	sleep(2) #warm up camera
 
 	################################# Begin Step 2 #################################
-	print "Taking pics" 
-	now = time.strftime("%Y-%m-%d-%H:%M:%S") #get the current date and time for the start of the filename
-	try: #take the photos
-		for i, filename in enumerate(camera.capture_continuous(config.file_path + now + '-' + '{counter:02d}.jpg')):
-			GPIO.output(led2_pin,True) #turn on the LED
-			print(filename)
-			sleep(0.25) #pause the LED on for just a bit
-			GPIO.output(led2_pin,False) #turn off the LED
-			sleep(capture_delay) # pause in-between shots
-			if i == total_pics-1:
-				break
-	finally:
-		camera.stop_preview()
-		camera.close()
+	print "Taking pics"
+	
+	now = time.strftime("%Y-%m-%d-%H:%M:%S") #need to let python decide file name so I can reference it
+
+        capture_image(now)
+
 	########################### Begin Step 3 #################################
-	print "Creating an animated gif" 
+        print "Postprocessing" 
 	if post_online:
 		show_image(real_path + "/uploading.png")
 	else:
 		show_image(real_path + "/processing.png")
 
-	GPIO.output(led3_pin,True) #turn on the LED
-	graphicsmagick = "gm convert -delay " + str(gif_delay) + " " + config.file_path + now + "*.jpg " + config.file_path + now + ".gif" 
-	os.system(graphicsmagick) #make the .gif
+#	GPIO.output(led3_pin,True) #turn on the LED
 	print "Uploading to tumblr. Please check " + config.tumblr_blog + ".tumblr.com soon."
 
 	if post_online: # turn off posting pics online in the variable declarations at the top of this document
@@ -227,18 +204,19 @@ def start_photobooth():
 				except:
 					print('Something went wrong. Could not write file.')
 					sys.exit(0) # quit Python
-	GPIO.output(led3_pin,False) #turn off the LED
+#	GPIO.output(led3_pin,False) #turn off the LED
 	
 	########################### Begin Step 4 #################################
-	GPIO.output(led4_pin,True) #turn on the LED
+#	GPIO.output(led4_pin,True) #turn on the LED
 	try:
 		display_pics(now)
+		time.sleep(5)
 	except Exception, e:
 		tb = sys.exc_info()[2]
 		traceback.print_exception(e.__class__, e, tb)
 	pygame.quit()
 	print "Done"
-	GPIO.output(led4_pin,False) #turn off the LED
+#	GPIO.output(led4_pin,False) #turn off the LED
 	
 	if post_online:
 		show_image(real_path + "/finished.png")
@@ -247,6 +225,8 @@ def start_photobooth():
 	
 	time.sleep(restart_delay)
 	show_image(real_path + "/intro.png");
+
+
 
 ####################
 ### Main Program ###
@@ -266,19 +246,20 @@ for f in files:
     os.remove(f)
 
 print "Photo booth app running..." 
-GPIO.output(led1_pin,True); #light up the lights to show the app is running
-GPIO.output(led2_pin,True);
-GPIO.output(led3_pin,True);
-GPIO.output(led4_pin,True);
-time.sleep(3)
-GPIO.output(led1_pin,False); #turn off the lights
-GPIO.output(led2_pin,False);
-GPIO.output(led3_pin,False);
-GPIO.output(led4_pin,False);
+#GPIO.output(led1_pin,True); #light up the lights to show the app is running
+#GPIO.output(led2_pin,True);
+#GPIO.output(led3_pin,True);
+#GPIO.output(led4_pin,True);
+#time.sleep(3)
+#GPIO.output(led1_pin,False); #turn off the lights
+#GPIO.output(led2_pin,False);
+#GPIO.output(led3_pin,False);
+#GPIO.output(led4_pin,False);
 
 show_image(real_path + "/intro.png");
 
 while True:
         GPIO.wait_for_edge(button1_pin, GPIO.FALLING)
+        print "start button pressed"
 	time.sleep(0.2) #debounce
 	start_photobooth()
