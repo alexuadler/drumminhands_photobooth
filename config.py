@@ -6,3 +6,4 @@ oath_token='OATH_TOKEN' #replace with you oath token
 oath_secret='OATH_SECRET' #replace with your oath secret code
 tumblr_blog = 'TUMBLR_BLOG' # replace with your tumblr account name without .tumblr.com
 file_path = '/home/pi/photobooth/pics/' # path to save images
+raw_path = '/home/pi/photobooth/raw_backup/' # path to save images
