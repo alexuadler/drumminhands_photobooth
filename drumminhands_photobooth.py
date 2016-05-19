@@ -176,6 +176,7 @@ def print_pic(namescheme):
     call ("lp -d Canon_CP800 " +
           config.file_path +
           namescheme + ".jpg", shell=True)
+    call ("lpr", shell = True)
 
 def check_for_print():
   timeout = time.time() + show_pic_delay
@@ -283,6 +284,7 @@ def start_photobooth():
 	
 	if print_choice == 1:
 		show_image(real_path + "/processing.png")
+		print_pic(now)
 	else:
 		show_image(real_path + "/our_cues/finished.png")
 	
