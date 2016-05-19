@@ -19,6 +19,7 @@ from signal import alarm, signal, SIGALRM, SIGKILL
 import subprocess
 from subprocess import call
 import commands
+from threading import Thread
 
 ##### Config Variables #####
 led1_pin = 12 # LED 1
@@ -28,20 +29,24 @@ led4_pin = 21 # LED 4
 button1_pin = 18 # pin for the big red button
 button2_pin = 22 # pin for button to shutdown the pi
 button3_pin = 17 # pin for button to end the program, but not shutdown the pibutton1_pin = 18
+button4_pin = 27 # pin for the print button
 
 post_online = 0
 total_pics = 1
 capture_delay = 2
 prep_delay = 3
-show_pic_delay = 4
-restart_delay = 5
+show_pic_delay = 6
+restart_delay = 3
+enable_printing = 1
 
-monitor_w = 800
-monitor_h = 480
-transform_x = 640 # how wide to scale the jpg when replaying
-transfrom_y = 480 # how high to scale the jpg when replaying
-offset_x = 80 # how far off to left corner to display photos
+monitor_w = 1024
+monitor_h = 600
+transform_x = 800 # how wide to scale the jpg when replaying
+transfrom_y = 600 # how high to scale the jpg when replaying
+offset_x = 112 # how far off to left corner to display photos
 offset_y = 0 # how far off to left corner to display photos
+backg_fill = 255,255,255
+
 replay_delay = 1 # how much to wait in-between showing pics on-screen after taking
 replay_cycles = 2 # how many times to show each photo on-screen after takingtransform
 
@@ -57,6 +62,7 @@ GPIO.setup(led4_pin,GPIO.OUT) # LED 4
 GPIO.setup(button1_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # falling edge detection on button 1
 GPIO.setup(button2_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # falling edge detection on button 2
 GPIO.setup(button3_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # falling edge detection on button 3
+GPIO.setup(button4_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP) # falling edge detection on button 4
 GPIO.output(led1_pin,False);
 GPIO.output(led2_pin,False);
 GPIO.output(led3_pin,False);
@@ -81,9 +87,13 @@ def shut_it_down(channel):
     os.system("sudo halt")
 
 def exit_photobooth(channel):
+#    global actuations
+#    global print_count
     print "Photo booth app ended. RPi still running" 
     GPIO.output(led1_pin,True);
     time.sleep(3)
+#    print "Took: " + actuations + " photos"
+#    print "Printed " + print_count + " mementos"
     sys.exit()
     
 def clear_pics(foo): #why is this function being passed an arguments?
@@ -121,7 +131,8 @@ def init_pygame():
     pygame.init()
     size = (pygame.display.Info().current_w, pygame.display.Info().current_h)
     pygame.display.set_caption('Photo Booth Pics')
-    pygame.mouse.set_visible(False) #hide the mouse cursor	
+    #pygame.display.set_mode(size).fill(backg_fill)
+    pygame.mouse.set_visible(False) #hide the mouse cursor
     return pygame.display.set_mode(size, pygame.FULLSCREEN)
 
 def capture_image(namescheme):
@@ -136,6 +147,7 @@ def backup_raw(namescheme):
 
 def show_image(image_path):
     screen = init_pygame()
+    screen.fill(backg_fill)
     img=pygame.image.load(image_path) 
     img = pygame.transform.scale(img,(transform_x,transfrom_y))
     screen.blit(img,(offset_x,offset_y))
@@ -160,9 +172,35 @@ def display_pics(jpg_group):
     filename = config.file_path + jpg_group + ".jpg"
     show_image(filename)
 
+def print_pic(namescheme):
+    call ("lp -d Canon_CP800 " +
+          config.file_path +
+          namescheme + ".jpg", shell=True)
+
+def check_for_print():
+  timeout = time.time() + show_pic_delay
+  global print_choice
+#  global print_count
+  while time.time() < timeout:
+    if GPIO.input(button4_pin)==0:
+          print_choice = 1
+#          print_count += 1
+  if print_choice==1:
+    GPIO.output(led3_pin, True)
+    time.sleep(2)
+    GPIO.output(led3_pin, False)
+    print "Sending picture to printer"
+  else:
+    GPIO.output(led4_pin, True)
+    time.sleep(2)
+    GPIO.output(led4_pin, False)
+    print "Continuing without printing"
+
 
 # define the photo taking function for when the big button is pressed 
 def start_photobooth(): 
+#        global actuations
+
 	################################# Begin Step 1 ################################# 
 	show_image(real_path + "/blank.png")
 	print "Get Ready"
@@ -184,6 +222,7 @@ def start_photobooth():
 	now = time.strftime("%Y-%m-%d-%H:%M:%S") #need to let python decide file name so I can reference it
 
         capture_image(now)
+#        actuations += 1 
         backup_raw(now)
 
 	########################### Begin Step 3 #################################
@@ -214,19 +253,36 @@ def start_photobooth():
 #	GPIO.output(led3_pin,False) #turn off the LED
 	
 	########################### Begin Step 4 #################################
-#	GPIO.output(led4_pin,True) #turn on the LED
+	GPIO.output(led4_pin,True) #turn on the LED
+        print_response = None
 	try:
 		display_pics(now)
-		time.sleep(show_pic_delay)
 	except Exception, e:
 		tb = sys.exc_info()[2]
 		traceback.print_exception(e.__class__, e, tb)
 	#pygame.quit()
 	print "Done"
+
+        print_choice = 0
+        timeout = time.time() + show_pic_delay
+        while time.time() < timeout:
+          if GPIO.input(button4_pin)==0:
+            print_choice = 1
+        if print_choice==1:
+          GPIO.output(led3_pin, True)
+          time.sleep(2)
+          GPIO.output(led3_pin, False)
+          print "Sending picture to printer"
+        else:
+          GPIO.output(led4_pin, True)
+          time.sleep(2)
+          GPIO.output(led4_pin, False)
+          print "Continuing without printing"
+
 	GPIO.output(led4_pin,False) #turn off the LED
 	
-	if post_online:
-		show_image(real_path + "/our_cues/finished.png")
+	if print_choice == 1:
+		show_image(real_path + "/processing.png")
 	else:
 		show_image(real_path + "/our_cues/finished.png")
 	
@@ -264,7 +320,8 @@ GPIO.output(led3_pin,False);
 GPIO.output(led4_pin,False);
 
 show_image(real_path + "/our_cues/intro.png");
-
+# actuations = 0
+# print_count = 0
 while True:
         GPIO.wait_for_edge(button1_pin, GPIO.FALLING)
         print "start button pressed"
